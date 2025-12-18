@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 
 import { useForm } from 'react-hook-form';
@@ -17,10 +17,14 @@ interface Props {
   isPending: boolean;
 
   // Methods
-  onSubmit: (productLike: Partial<Product>) => Promise<void>;
+  onSubmit: (productLike: Partial<Product> & { files?: File[]}) => Promise<void>;
 }
 
 const availableSizes:Size[] = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+
+interface FormInputs extends Product {
+  files?: File[];
+}
 
 
 export const ProductForm = ( { title, subtitle, product, onSubmit, isPending }: Props ) => {
@@ -33,9 +37,17 @@ export const ProductForm = ( { title, subtitle, product, onSubmit, isPending }: 
     getValues,
     setValue,
     watch
-  } = useForm({ defaultValues: product });
+  } = useForm<FormInputs>({ 
+    defaultValues: product 
+  });
 
-  const labelInputRef = useRef<HTMLInputElement>(null)
+  const labelInputRef = useRef<HTMLInputElement>(null);
+  const [ files, setFiles] = useState<File[]>([]);
+
+  useEffect(() => {
+    setFiles([])
+  }, [product]);
+  
 
   const selectedSizes = watch('sizes');
   const selectedTags = watch('tags');
@@ -57,32 +69,18 @@ export const ProductForm = ( { title, subtitle, product, onSubmit, isPending }: 
     newTagSet.delete(tag);
 
     setValue('tags', Array.from(newTagSet));
-    // setProduct((prev) => ({
-    //   ...prev,
-    //   tags: prev.tags.filter((tag) => tag !== tagToRemove),
-    // }));
   };
 
   const addSize = (size: Size) => {
     const sizeSet = new Set(getValues('sizes'));
     sizeSet.add(size);
     setValue( 'sizes', Array.from(sizeSet) )
-    // if (!product.sizes.includes(size)) {
-    //   setProduct((prev) => ({
-    //     ...prev,
-    //     sizes: [...prev.sizes, size],
-    //   }));
-    // }
   };
 
   const removeSize = (size: Size) => {
     const sizeSet = new Set(getValues('sizes'));
     sizeSet.delete(size);
     setValue( 'sizes', Array.from(sizeSet) )
-    // setProduct((prev) => ({
-    //   ...prev,
-    //   sizes: prev.sizes.filter((size) => size !== sizeToRemove),
-    // }));
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -100,12 +98,24 @@ export const ProductForm = ( { title, subtitle, product, onSubmit, isPending }: 
     e.stopPropagation();
     setDragActive(false);
     const files = e.dataTransfer.files;
-    console.log(files);
+    
+    if (!files) return;
+    
+    setFiles( (prev) => [...prev, ...Array.from(files)]);
+
+    const currentFiles = getValues('files') || [];
+    setValue('files', [...currentFiles, ...Array.from(files)]);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    console.log(files);
+    
+    if (!files) return;
+
+    setFiles( (prev) => [...prev, ...Array.from(files)]);
+
+    const currentFiles = getValues('files') || [];
+    setValue('files', [...currentFiles, ...Array.from(files)]);
   };
 
 
@@ -448,6 +458,29 @@ export const ProductForm = ( { title, subtitle, product, onSubmit, isPending }: 
                       </p>
                     </div>
                   ))}
+                </div>
+              </div>
+
+              {/* Imágenes por cargar */}
+              <div className={
+                cn("mt-6 space-y-3", {
+                  hidden: files.length === 0,
+                })}
+              >
+                <h3 className="text-sm font-medium text-slate-700">
+                  Imágenes por cargar
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {
+                    files.map( (file, index) => (
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt="Product"
+                        key={index}
+                        className="w-full h-full object-cover rounded-lg"
+                      />
+                    ))
+                  }
                 </div>
               </div>
             </div>
